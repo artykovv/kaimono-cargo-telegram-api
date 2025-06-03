@@ -5,3 +5,4 @@ asyncpg
 uvicorn
 greenlet
 gunicorn
+fastapi-users[sqlalchemy]
