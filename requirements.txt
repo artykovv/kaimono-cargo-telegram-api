@@ -1,0 +1,7 @@
+python-dotenv
+fastapi
+sqlalchemy
+asyncpg
+uvicorn
+greenlet
+gunicorn
