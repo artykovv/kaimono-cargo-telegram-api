@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, HTTPException
 from fastapi import Depends
 from sqlalchemy import insert, select
@@ -44,7 +44,7 @@ async def register_client(
         number=query.number,
         city=query.city,
         telegram_chat_id=query.telegram_chat_id,
-        registered_at=datetime.utcnow(),
+        registered_at=datetime.now(timezone(timedelta(hours=6))).replace(tzinfo=None),
         branch_id=query.branch_id,
         numeric_code=int(gen_code["numeric_code"])
     )
