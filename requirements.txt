@@ -6,3 +6,5 @@ uvicorn
 greenlet
 gunicorn
 fastapi-users[sqlalchemy]
+jinja2
+httpx
