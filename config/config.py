@@ -19,3 +19,6 @@ API_KEYS = {
     os.getenv("API_KEY_1"): "Key1",
     os.getenv("API_KEY_2"): "Key2",
 }
+
+TELEGRAM_API = os.environ.get("TELEGRAM_API")
+API_KEY = os.environ.get("API_KEY_1")

@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, HTTPException
 from fastapi import Depends
@@ -12,6 +13,7 @@ from models import Client, Product, Branch
 from schemas.telegram import CreateClient
 from functions.generate_code import generate_new_code_async
 from config.status import ProductStatus
+from functions.registration_success import send_registration_success_message
 
 router = APIRouter(prefix="/telegram", tags=["telegram"])
 
@@ -21,6 +23,7 @@ async def register_client(
     session: AsyncSession = Depends(get_async_session),
     api_key: APIKey = Depends(get_api_key)
 ):
+    
     # Проверяем, существует ли клиент с такими же параметрами
     existing_client = await session.execute(select(Client).filter_by(
         name=query.name, 
@@ -59,6 +62,7 @@ async def register_client(
         )
     )
     created_client = created_client.scalar()
+    asyncio.create_task(send_registration_success_message(created_client))
 
     return created_client
 

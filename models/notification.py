@@ -14,6 +14,18 @@ class NotificationTask(Base):
     error_message = Column(Text, nullable=True)
     
     recipients = relationship("Client", secondary="notification_task_recipients")
+    images = relationship("NotificationImage", back_populates="task")  # Добавлена связь
+
+
+class NotificationImage(Base):
+    __tablename__ = 'notification_images'
+
+    id = Column(Integer, primary_key=True)
+    task_id = Column(Integer, ForeignKey('notification_tasks.id'))
+    image = Column(String(255), nullable=False)  # Путь к файлу
+    
+    task = relationship("NotificationTask", back_populates="images")  # Исправлено
+
 
 # Таблица связи многие-ко-многим для задач уведомлений и получателей
 notification_task_recipients = Table(
