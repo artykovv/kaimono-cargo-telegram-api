@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Регистрация</title>
+  <title>Редактировать профиль</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
   <link rel="icon" type="image/svg+xml" href="https://s3.twcstorage.ru/950b8ae0-ede96dcd-cf8e-4652-abdd-26b6b4c42e38/kaimono/cargo/docs/favicon.svg">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -41,8 +41,8 @@
 </head>
 <body>
   <div class="container">
-    <h1 class="text-center mb-4">Регистрация</h1>
-    <form id="registration-form">
+    <h1 class="text-center mb-4">Редактировать профиль</h1>
+    <form id="edit-form">
       <div class="mb-3">
         <label for="name" class="form-label">Имя:</label>
         <input type="text" class="form-control" id="name" name="name" required placeholder="Введите ваше имя">
@@ -54,32 +54,34 @@
       </div>
       <div class="mb-3">
         <label for="city" class="form-label">Адрес проживания:</label>
-        <input type="text" class="form-control" id="city" name="city" required placeholder="Введите ваш адрес">
+        <input type="text" class="form-control" id="city" name="city" required placeholder="Введите ваш адрес проживания">
       </div>
       <div class="mb-3">
         <label for="branch" class="form-label">Филиал:</label>
         <select class="form-select" id="branch" name="branch" required>
-          <option value="" disabled selected>Выберите филиал</option>
+          <option value="" disabled>Выберите филиал</option>
         </select>
       </div>
-      <button type="submit" class="btn btn-primary">Зарегистрироваться</button>
+      <button type="submit" class="btn btn-primary">Сохранить изменения</button>
     </form>
     <p id="error" class="text-danger" style="display: none;"></p>
   </div>
 
   <script>
-    const apikey = "{{API_KEY}}"
+    const apikey = "{{API_KEY}}";
     const tg = window.Telegram.WebApp;
     tg.expand();
-    tg.MainButton.setText('Зарегистрироваться').show();
+    tg.MainButton.setText('Сохранить изменения').show();
 
     const user = tg.initDataUnsafe.user;
     const telegram_chat_id = user?.id;
 
-    const form = document.getElementById('registration-form');
+    const form = document.getElementById('edit-form');
     const error = document.getElementById('error');
     const branchSelect = document.getElementById('branch');
     const numberInput = document.getElementById('number');
+    const nameInput = document.getElementById('name');
+    const cityInput = document.getElementById('city');
 
     // Show error message
     function showError(message) {
@@ -117,7 +119,35 @@
       }
     }
 
-    loadBranches();
+    // Fetch user data and fill form
+    async function loadUserData() {
+      try {
+        const response = await fetch(`/telegram/${telegram_chat_id}`, {
+          headers: {
+            "X-API-Key": apikey,
+            "Accept": "application/json"
+          }
+        });
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: Не удалось загрузить данные пользователя`);
+        }
+        const users = await response.json();
+        if (users.length > 0) {
+          const userData = users[0];
+          nameInput.value = userData.name;
+          numberInput.value = userData.number;
+          cityInput.value = userData.city;
+          await loadBranches();
+          branchSelect.value = userData.branch_id;
+        } else {
+          showError('Данные пользователя не найдены');
+        }
+      } catch (err) {
+        showError('Ошибка загрузки данных: ' + err.message);
+      }
+    }
+
+    loadUserData();
 
     // Validate phone number format
     function validatePhoneNumber(number) {
@@ -129,9 +159,9 @@
       e.preventDefault();
       clearError();
 
-      const name = document.getElementById('name').value.trim();
-      const number = document.getElementById('number').value.trim();
-      const city = document.getElementById('city').value.trim();
+      const name = nameInput.value.trim();
+      const number = numberInput.value.trim();
+      const city = cityInput.value.trim();
       const branch_id = parseInt(branchSelect.value);
 
       // Client-side validation
@@ -158,12 +188,11 @@
           name: String(name),
           number: String(number),
           city: String(city),
-          telegram_chat_id: String(telegram_chat_id),
           branch_id: Number(branch_id)
         };
-        console.log('Sending payload:', payload); // Debugging log
-        const response = await fetch('/telegram/register/clients', {
-          method: 'POST',
+        console.log('Sending payload:', payload);
+        const response = await fetch(`/telegram/${telegram_chat_id}`, {
+          method: 'PUT',
           headers: {
             "X-API-Key": apikey,
             "Accept": "application/json",
@@ -172,23 +201,37 @@
           body: JSON.stringify(payload)
         });
 
-        const result = await response.json();
-        console.log('Response:', result); // Debugging log
+        console.log('Response status:', response.status);
+        let result;
+        try {
+          result = await response.json();
+          console.log('Response body:', result);
+          console.log('Result message:', result.message);
+          console.log('Result client_id:', result.client_id);
+        } catch (jsonError) {
+          console.error('JSON parse error:', jsonError);
+          showError('Ошибка обработки ответа сервера');
+          return;
+        }
 
         if (!response.ok) {
-          const errorMsg = result.detail?.[0]?.msg || `Ошибка регистрации (HTTP ${response.status})`;
+          const errorMsg = result.detail?.[0]?.msg || `Ошибка обновления (HTTP ${response.status})`;
           showError(errorMsg);
           return;
         }
 
-        if (result.status === 'ok' || result.id) {
+        if (result.status === 'ok' || result.client_id || result.success === true) {
+          console.log('Closing miniapp');
+          // Отправляем сигнал боту о завершении редактирования
+          tg.sendData(JSON.stringify({ action: 'profile_updated' }));
           tg.MainButton.hide();
           tg.close();
         } else {
-          showError(result.message || 'Неизвестная ошибка');
+          showError(result.message || 'Неизвестная ошибка: неожиданный формат ответа');
+          console.log('Unexpected response format:', result);
         }
       } catch (error) {
-        console.error('Request error:', error); // Debugging log
+        console.error('Request error:', error);
         showError('Ошибка сети или сервера: ' + error.message);
       }
     });

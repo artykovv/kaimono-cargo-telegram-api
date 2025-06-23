@@ -16,3 +16,15 @@ async def page(request: Request):
             "request": request
         }
     )
+
+@router.get("/update")
+async def page(request: Request):
+   
+    return templates.TemplateResponse(
+        "update.html",
+        {
+            "title": "Изменить",
+            "API_KEY": API_KEY,
+            "request": request
+        }
+    )

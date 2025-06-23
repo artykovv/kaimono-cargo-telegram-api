@@ -1,6 +1,6 @@
 import asyncio
 from datetime import datetime, timedelta, timezone
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, status
 from fastapi import Depends
 from sqlalchemy import insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,10 +10,11 @@ from fastapi.security.api_key import APIKey
 
 from config.api_config import get_api_key
 from models import Client, Product, Branch
-from schemas.telegram import CreateClient
+from schemas.telegram import CreateClient, UpdateClient
 from functions.generate_code import generate_new_code_async
 from config.status import ProductStatus
 from functions.registration_success import send_registration_success_message
+from functions.success_update_client import send_update_success_message
 
 router = APIRouter(prefix="/telegram", tags=["telegram"])
 
@@ -327,3 +328,33 @@ async def udpate_cient_branch(
         "branch_id": client.branch_id,
         "code": client.code
     }
+
+@router.put("/{telegram_chat_id}")
+async def update_client_by_telegram_chat_id(
+    telegram_chat_id: str,
+    update_data: UpdateClient,
+    session: AsyncSession = Depends(get_async_session),
+    api_key: APIKey = Depends(get_api_key),
+):
+    query = select(Client).where(Client.telegram_chat_id == telegram_chat_id)
+    result = await session.execute(query)
+    client = result.scalar_one_or_none()
+
+    if client is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Клиент не найден"
+        )
+
+    # Обновляем поля
+    client.name = update_data.name
+    client.number = update_data.number
+    client.city = update_data.city
+    client.branch_id = update_data.branch_id
+
+    await session.commit()
+    await session.refresh(client)
+
+    asyncio.create_task(send_update_success_message(client))
+
+    return {"message": "Клиент успешно обновлён", "client_id": client.id}
