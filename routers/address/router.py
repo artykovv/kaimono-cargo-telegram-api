@@ -5,7 +5,7 @@ from config.database import get_async_session
 from sqlalchemy import select
 from fastapi.security.api_key import APIKey
 from config.api_config import get_api_key
-from models import ChinaAddress
+from models import ChinaAddress, AddressPhoto, AddressVideo
 
 router = APIRouter(prefix="/address", tags=["address"])
 
@@ -18,3 +18,17 @@ async def get_branches(
     result = await session.execute(query)
     branches = result.scalars().first()
     return branches
+
+@router.get("/photo")
+async def list_photos(
+    db: AsyncSession = Depends(get_async_session),
+):
+    result = await db.execute(select(AddressPhoto))
+    return result.scalars().all()
+
+@router.get("/video")
+async def list_videos(
+    db: AsyncSession = Depends(get_async_session),
+):
+    result = await db.execute(select(AddressVideo))
+    return result.scalars().all()
